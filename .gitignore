@@ -1,0 +1,8 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Exported data files
+*.txt
+
