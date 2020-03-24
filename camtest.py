@@ -5,6 +5,7 @@ import picamera
 import pygame
 import yuv2rgb
 from pygame.locals import *
+from thermalcamera import *
 
 
 # --- Initialization ---
@@ -18,6 +19,10 @@ os.putenv('SDL_MOUSEDEV', '/dev/input/touchscreen')
 pygame.init()
 pygame.mouse.set_visible(False)
 lcd = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+
+# Init thermal camera
+i2c = busio.I2C(board.SCL, board.SDA)
+tc = adafruit_amg88xx.AMG88XX(i2c)
 
 # Camera parameters for different size settings
 sw = 480
@@ -60,6 +65,19 @@ while not done:
     sizeData[sizeMode][1], 'RGB')
   lcd.blit(img, ((sw - img.get_width())/2,
     (sh - img.get_height()) /2))
+  # Create thermal overlay
+  # https://stackoverflow.com/questions/6339057/draw-a-transparent-rectangle-in-pygame for transparent overlay
+  tempSurface = pygame.Surface((sensorHeight,sensorWidth))
+  tempSurface.set_alpha(128)
+  tempSurface.fill((255, 255, 255, 128))
+  pixels, bicubic = displayPixels(tc)
+  for ix, row in enumerate(bicubic):
+    for jx, pixel in enumerate(row):
+      pygame.draw.rect(tempSurface, colors[constrain(int(pixel), 0, COLORDEPTH-1)], (sensorPixelWidth * ix, sensorPixelWidth * jx, sensorPixelHeight, sensorPixelWidth))
+  lcd.blit(tempSurface,((sw-sensorWidth)/2,(sh-sensorHeight)/2))
+
   pygame.display.update()
 
-  
+print(len(bicubic))
+print(len(bicubic[0]))
+

@@ -1,19 +1,22 @@
+import busio
+import board
+import adafruit_amg88xx
 import math
 import numpy as np
 from scipy.interpolate import griddata
 from colour import Color
 
-MINTEMP = 20.
-MAXTEMP = 28.
+MINTEMP = 14.
+MAXTEMP = 22.
 COLORDEPTH = 1024
 
 points = [(math.floor(ix / 8), (ix % 8)) for ix in range(0,64)]
 grid_x, grid_y = np.mgrid[0:7:32j, 0:7:32j]
 
-sensorHeight = 240
-sensorWidth = 240
-sensorPixelWidth = 8
-sensorPixelHeight = 8
+sensorHeight = 320
+sensorWidth = 320
+sensorPixelWidth = 10
+sensorPixelHeight = 10
 
 blue = Color("indigo")
 colors = list(blue.range_to(Color("red"), COLORDEPTH))
@@ -28,8 +31,10 @@ def map_value(x, in_min, in_max, out_min, out_max):
 
 def displayPixels(sensor):
   pixels = []
+  # Might want to np.flipud(sensor.pixels) to align pixels and bicubic
   for row in sensor.pixels:
     pixels = pixels + row
+  # coverts temperature into a color
   pixels = [map_value(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
   #pixels = np.flip(pixels)
   bicubic = griddata(points, pixels, (grid_x, grid_y), method='cubic')
