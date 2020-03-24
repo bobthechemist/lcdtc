@@ -31,7 +31,9 @@ def displayPixels(sensor):
   for row in sensor.pixels:
     pixels = pixels + row
   pixels = [map_value(p, MINTEMP, MAXTEMP, 0, COLORDEPTH - 1) for p in pixels]
+  #pixels = np.flip(pixels)
   bicubic = griddata(points, pixels, (grid_x, grid_y), method='cubic')
+  bicubic = np.flipud(bicubic)
   return pixels,  bicubic
 
 
