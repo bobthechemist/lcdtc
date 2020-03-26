@@ -14,8 +14,8 @@ points = [(math.floor(ix / 8), (ix % 8)) for ix in range(0,64)]
 grid_x, grid_y = np.mgrid[0:7:32j, 0:7:32j]
 
 sensorHeight = 320
-sensorWidth = 320
-sensorPixelWidth = 10
+sensorWidth = 480
+sensorPixelWidth = 15
 sensorPixelHeight = 10
 
 blue = Color("indigo")

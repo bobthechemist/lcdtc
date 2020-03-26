@@ -67,17 +67,15 @@ while not done:
     (sh - img.get_height()) /2))
   # Create thermal overlay
   # https://stackoverflow.com/questions/6339057/draw-a-transparent-rectangle-in-pygame for transparent overlay
-  tempSurface = pygame.Surface((sensorHeight,sensorWidth))
+  tempSurface = pygame.Surface((sensorWidth,sensorHeight))
   tempSurface.set_alpha(128)
   tempSurface.fill((255, 255, 255, 128))
   pixels, bicubic = displayPixels(tc)
   for ix, row in enumerate(bicubic):
     for jx, pixel in enumerate(row):
-      pygame.draw.rect(tempSurface, colors[constrain(int(pixel), 0, COLORDEPTH-1)], (sensorPixelWidth * ix, sensorPixelWidth * jx, sensorPixelHeight, sensorPixelWidth))
-  lcd.blit(tempSurface,((sw-sensorWidth)/2,(sh-sensorHeight)/2))
+      pygame.draw.rect(tempSurface, colors[constrain(int(pixel), 0, COLORDEPTH-1)], (sensorPixelWidth * ix, sensorPixelHeight * jx, sensorPixelWidth, sensorPixelHeight))
+  lcd.blit(tempSurface,(0,0))
 
   pygame.display.update()
 
-print(len(bicubic))
-print(len(bicubic[0]))
 
