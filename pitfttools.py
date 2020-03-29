@@ -1,12 +1,35 @@
-# UI for PiTFT based heavily on Adafruit picam
+# Simplify initializing and using the piTFT
+# Likely hardcoded to the tools I have, sorry.
+import pygame
+from pygame.locals import *
+import os
+import fnmatch
+
+# My color theme (Brockport Proud)
+DKGREEN = (  0,  83,  62)
+LTGREEN = ( 87, 121,  53)
+GOLD    = (255, 199,  38)
+BLUE    = (  0,  65,  89)
+RUST    = (123,  29,  32)
+PURPLE  = ( 87,  82, 126)
+GRAY    = ( 38,  38,  38)
+TAN     = (202, 179, 136)
+
+def screenInit():
+  os.putenv('SDL_VIDEODRIVER', 'fbcon')
+  os.putenv('SDL_FBDEV'      , '/dev/fb1')
+  os.putenv('SDL_MOUSEDRV'   , 'TSLIB')
+  os.putenv('SDL_MOUSEDEV'   , '/dev/input/touchscreen')
+  pygame.init()
+  pygame.mouse.set_visible(False)
+  return pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+  
+
+# User interface stuff
 
 # Icon is a bitmap class that associates name and pygame
 # image (PNG).  List is populated at runtime from contents
 # of 'icons' directory.
-
-# Assumes icon path is 'icons'
-
-import pygame
 
 iconPath = 'icons'
 
@@ -80,4 +103,21 @@ class Button:
           break
 
 
+def loadIcons():
+  icons = []
+  for file in os.listdir(iconPath):
+    if fnmatch.fnmatch(file, '*.png'):
+      icons.append(Icon(file.split('.')[0]))
+  return icons
 
+def makeButtons(buttons, icons):
+  for s in buttons:
+    for b in s:
+      for i in icons:
+        if b.bg == i.name:
+          b.iconBg = i
+          b.bg = None
+        if b.fg == i.name:
+          b.iconFg = i
+          b.fg = None
+  
