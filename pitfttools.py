@@ -82,8 +82,13 @@ class Button:
     return False
 
   def draw(self, scr):
+    # Consider scr.fill(color, rect, speical_flags=pygame.RGB_BLEND_ADD)
     if self.color:
-      scr.fill(self.color, self.rect)
+      if type(self.color) is tuple:
+        scr.fill(self.color,self.rect)
+      else:
+        c = self.color()
+        scr.fill(c, self.rect)
     if self.iconBg:
       scr.blit(self.iconBg.bitmap,
         (self.rect[0] + (self.rect[2] - self.iconBg.bitmap.get_width())/2,
