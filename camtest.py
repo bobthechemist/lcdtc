@@ -1,8 +1,10 @@
-#import os
+import os
 import io
 import atexit
 import picamera
 import yuv2rgb
+import csv
+from datetime import datetime
 from time import sleep
 from pitfttools import *
 from thermalcamera import *
@@ -18,12 +20,10 @@ def finishedCallback():
   global done
   done = True
 
-camActive = False
 def activeCamCallback():
   global camActive
   camActive = not camActive
 
-thmActive = False
 def activeThmCallback():
   global thmActive
   thmActive = not thmActive
@@ -39,8 +39,39 @@ def mintempCallback(n):
   global screenModeMessage
   tc.MINTEMP = constrain(tc.MINTEMP + n, 0, tc.MAXTEMP - 1)
   screenModeMessage[1] = "MINTEMP: " + str(tc.MINTEMP)
-  
 
+# pixels data can be recreated in MMA with (? check) 
+# ListDensityPlot[Reverse@Transpose@Reverse@Partition[Flatten@Import["file","CSV"],8],InterpolationOrder->1]
+# bicubic uses the same transformation but is already partitioned
+def saveCallback():
+  # will eventually do both cameras
+  # presently assumes img directory exists and does not care about privs
+  global pixels
+  global bicubic
+  # Use the date for the filename
+  now = datetime.now()
+  # Save raw data (pixel temperatures)
+  pfile = open(now.strftime('img/%y%m%d-%H%M%S-pixels.txt'), 'w')
+  for item in pixels:
+    pfile.write('%s\n' % item)
+  pfile.close
+  # Save bicubic transformation (probably not needed)
+  with open(now.strftime('img/%y%m%d-%H%M%S-bicubic.csv'), 'w') as bfile:
+    bWriter = csv.writer(bfile, delimiter=',', quotechar='"')
+    for r in bicubic:
+      bWriter.writerow(r)
+  # Save image
+  camera.capture(now.strftime('img/%y%m%d-%H%M%S-img.jpg'), use_video_port=False, format='jpeg',
+    thumbnail=None)
+
+      
+  
+# Technically a callback, named inconsistently because I'm a bad programmer
+def setScreenMode(n):
+  global screenMode
+  screenMode = n
+
+# --- define button color functions
 def camButtonColor():
   global camActive
   if camActive:
@@ -55,57 +86,67 @@ def thmButtonColor():
   else:
     return DKGREEN
 
+# More efficient would be to have a single function; however I think that
+#  requires a change in the Button class.
 def buttonColor(flag, trueColor, falseColor):
   if flag:
     return trueColor
   else:
     return falseColor
 
-def setScreenMode(n):
-  global screenMode
-  screenMode = n
-
-
-  
-
-
 # --- Place globals here
 
-screenMode = 0
+tc = ThermalCamera()        # Initialize thermal camera
+screenMode = 0              # Which set of buttons to display
+camActive = False           # Is optical camera active?
+thmActive = False           # Is thermal camera active?
+
+# --- screenMode names
+MAXMENU   = 10
+smMAIN    = 0
+smMIN     = 1
+smMAX     = 2
+smQUIT    = 3
+smSAVE    = 4
 
 # --- Create button screens
-buttons = [
-  # screenMode = 0 --- main menu
-  [
+
+buttons = [[]] * MAXMENU
+# main menu
+buttons[smMAIN] =   [
     Button((5, 250, 86, 50), color=None, bg='prev', cb=nullCallback),
     Button((101,250, 86, 50), color=camButtonColor, bg='camera', cb=activeCamCallback),
     Button((197,250, 86, 50), color=RUST, bg='quit', cb=quitCallback),
     Button((293,250, 86, 50), color=thmButtonColor, bg='flame', cb=activeThmCallback),
-    Button((389,250, 86, 50), color=None, bg='next', cb=setScreenMode, value=1)
-  ],
-  # screenMode = 1 --- Thermal camera MINTEMP adjust
-  [
-    Button((5, 250, 86, 50), color=None, bg='prev', cb=setScreenMode, value=0),
+    Button((389,250, 86, 50), color=None, bg='next', cb=setScreenMode, value=smMIN)
+  ]
+# Thermal camera MINTEMP adjust
+buttons[smMIN] =   [
+    Button((5, 250, 86, 50), color=None, bg='prev', cb=setScreenMode, value=smMAIN),
     Button((101,250, 86, 50), color=None, bg='minus', cb=mintempCallback, value=-1),
     Button((293,250, 86, 50), color=None, bg='plus', cb=mintempCallback, value=1),
-    Button((389,250, 86, 50), color=None, bg='next', cb=setScreenMode, value=2)
-  ],
-  # screenMode = 2 --- Thermal camera MAXTEMP adjust
-  [
-    Button((5, 250, 86, 50), color=None, bg='prev', cb=setScreenMode, value=1),
+    Button((389,250, 86, 50), color=None, bg='next', cb=setScreenMode, value=smMAX)
+  ]
+# Thermal camera MAXTEMP adjust
+buttons[smMAX] =   [
+    Button((5, 250, 86, 50), color=None, bg='prev', cb=setScreenMode, value=smMIN),
     Button((101,250, 86, 50), color=None, bg='minus', cb=maxtempCallback, value=-1),
     Button((293,250, 86, 50), color=None, bg='plus', cb=maxtempCallback, value=1),
-    Button((389,250, 86, 50), color=None, bg='next', cb=setScreenMode, value=0)
+    Button((389,250, 86, 50), color=None, bg='next', cb=setScreenMode, value=smSAVE)
   ]
-  # screenMode = 2 --- Quit menu
-]
+# Save thermal snapshot
+buttons[smSAVE] =   [
+    Button((5, 250, 86, 50), color=None, bg='prev', cb=setScreenMode, value=smMAX),
+    Button((197,250, 86, 50), color=GOLD, bg='storage', cb=saveCallback),
+    Button((389,250, 86, 50), color=None, bg='next', cb=setScreenMode, value=smMAIN)
+  ]
 
-# Title the button screens
-screenModeMessage = [
-  "Main",
-  "Set MINTEMP",
-  "Set MAXTEMP"
-]
+# Title the button screens.  List constructed since I don't know what order I really want these in
+screenModeMessage = [""] * MAXMENU 
+screenModeMessage[smMAIN]     = "Main"
+screenModeMessage[smMIN]      = "Set MINTEMP: " + str(tc.MINTEMP)
+screenModeMessage[smMAX]      = "Set MAXTEMP: " + str(tc.MAXTEMP)
+screenModeMessage[smSAVE]     = "Export thermal CSV"
 
 # --- load icons and connect buttons
 icons = loadIcons()
@@ -115,8 +156,6 @@ makeButtons(buttons, icons)
 lcd = screenInit()
 lcd.fill(DKGREEN)
 
-# Init thermal camera
-tc = ThermalCamera()
 
 
 # Camera parameters for different size settings
@@ -182,7 +221,9 @@ while not done:
     pixels, bicubic = tc.displayPixels()
     for ix, row in enumerate(bicubic):
       for jx, pixel in enumerate(row):
-        pygame.draw.rect(tempSurface, tc.colors[constrain(int(pixel), 0, tc.COLORDEPTH-1)], (tc.sensorPixelWidth * ix, tc.sensorPixelHeight * jx, tc.sensorPixelWidth, tc.sensorPixelHeight))
+        pygame.draw.rect(tempSurface, 
+          tc.colors[constrain(int(pixel), 0, tc.COLORDEPTH-1)], 
+          (tc.sensorPixelWidth * ix, tc.sensorPixelHeight * jx, tc.sensorPixelWidth, tc.sensorPixelHeight))
     lcd.blit(tempSurface,(0,0))
 
   # Draw the buttons

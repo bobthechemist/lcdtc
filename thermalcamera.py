@@ -25,13 +25,12 @@ class ThermalCamera:
 
   def displayPixels(self):
     pixels = []
-    # Might want to np.flipud(sensor.pixels) to align pixels and bicubic
     for row in self.sensor.pixels:
       pixels = pixels + row
-    # coverts temperature into a color
-    pixels = [map_value(p, self.MINTEMP, self.MAXTEMP, 0, self.COLORDEPTH - 1) for p in pixels]
-    #pixels = np.flip(pixels)
-    bicubic = griddata(self.points, pixels, (self.grid_x, self.grid_y), method='cubic')
+    # coverts temperature into a color, used for bicubic but not returned
+    pixels2 = [map_value(p, self.MINTEMP, self.MAXTEMP, 0, self.COLORDEPTH - 1) for p in pixels]
+    #pixels = np.flipud(pixels)
+    bicubic = griddata(self.points, pixels2, (self.grid_x, self.grid_y), method='cubic')
     bicubic = np.flipud(bicubic)
     return pixels,  bicubic
 
