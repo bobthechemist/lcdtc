@@ -28,6 +28,19 @@ def activeThmCallback():
   global thmActive
   thmActive = not thmActive
 
+def maxtempCallback(n):
+  global tc
+  global screenModeMessage
+  tc.MAXTEMP = constrain(tc.MAXTEMP + n, tc.MINTEMP, 80)
+  screenModeMessage[2] = "MAXTEMP: " + str(tc.MAXTEMP)
+
+def mintempCallback(n):
+  global tc
+  global screenModeMessage
+  tc.MINTEMP = constrain(tc.MINTEMP + n, 0, tc.MAXTEMP - 1)
+  screenModeMessage[1] = "MINTEMP: " + str(tc.MINTEMP)
+  
+
 def camButtonColor():
   global camActive
   if camActive:
@@ -48,15 +61,50 @@ def buttonColor(flag, trueColor, falseColor):
   else:
     return falseColor
 
+def setScreenMode(n):
+  global screenMode
+  screenMode = n
+
+
+  
+
+
+# --- Place globals here
+
+screenMode = 0
+
 # --- Create button screens
 buttons = [
+  # screenMode = 0 --- main menu
   [
     Button((5, 250, 86, 50), color=None, bg='prev', cb=nullCallback),
     Button((101,250, 86, 50), color=camButtonColor, bg='camera', cb=activeCamCallback),
     Button((197,250, 86, 50), color=RUST, bg='quit', cb=quitCallback),
     Button((293,250, 86, 50), color=thmButtonColor, bg='flame', cb=activeThmCallback),
-    Button((389,250, 86, 50), color=None, bg='next', cb=nullCallback)
+    Button((389,250, 86, 50), color=None, bg='next', cb=setScreenMode, value=1)
+  ],
+  # screenMode = 1 --- Thermal camera MINTEMP adjust
+  [
+    Button((5, 250, 86, 50), color=None, bg='prev', cb=setScreenMode, value=0),
+    Button((101,250, 86, 50), color=None, bg='minus', cb=mintempCallback, value=-1),
+    Button((293,250, 86, 50), color=None, bg='plus', cb=mintempCallback, value=1),
+    Button((389,250, 86, 50), color=None, bg='next', cb=setScreenMode, value=2)
+  ],
+  # screenMode = 2 --- Thermal camera MAXTEMP adjust
+  [
+    Button((5, 250, 86, 50), color=None, bg='prev', cb=setScreenMode, value=1),
+    Button((101,250, 86, 50), color=None, bg='minus', cb=maxtempCallback, value=-1),
+    Button((293,250, 86, 50), color=None, bg='plus', cb=maxtempCallback, value=1),
+    Button((389,250, 86, 50), color=None, bg='next', cb=setScreenMode, value=0)
   ]
+  # screenMode = 2 --- Quit menu
+]
+
+# Title the button screens
+screenModeMessage = [
+  "Main",
+  "Set MINTEMP",
+  "Set MAXTEMP"
 ]
 
 # --- load icons and connect buttons
@@ -68,8 +116,8 @@ lcd = screenInit()
 lcd.fill(DKGREEN)
 
 # Init thermal camera
-i2c = busio.I2C(board.SCL, board.SDA)
-tc = adafruit_amg88xx.AMG88XX(i2c)
+tc = ThermalCamera()
+
 
 # Camera parameters for different size settings
 sw = 480
@@ -104,7 +152,7 @@ while not done:
   for event in pygame.event.get():
     if(event.type is MOUSEBUTTONDOWN):
       pos = pygame.mouse.get_pos()
-      for b in buttons[0]:
+      for b in buttons[screenMode]:
         if b.selected(pos):
           break
   
@@ -128,18 +176,23 @@ while not done:
   # Create thermal overlay
   # https://stackoverflow.com/questions/6339057/draw-a-transparent-rectangle-in-pygame for transparent overlay
   if thmActive:
-    tempSurface = pygame.Surface((sensorWidth,sensorHeight))
+    tempSurface = pygame.Surface((tc.sensorWidth,tc.sensorHeight))
     tempSurface.set_alpha(128)
     tempSurface.fill((255, 255, 255, 128))
-    pixels, bicubic = displayPixels(tc)
+    pixels, bicubic = tc.displayPixels()
     for ix, row in enumerate(bicubic):
       for jx, pixel in enumerate(row):
-        pygame.draw.rect(tempSurface, colors[constrain(int(pixel), 0, COLORDEPTH-1)], (sensorPixelWidth * ix, sensorPixelHeight * jx, sensorPixelWidth, sensorPixelHeight))
+        pygame.draw.rect(tempSurface, tc.colors[constrain(int(pixel), 0, tc.COLORDEPTH-1)], (tc.sensorPixelWidth * ix, tc.sensorPixelHeight * jx, tc.sensorPixelWidth, tc.sensorPixelHeight))
     lcd.blit(tempSurface,(0,0))
 
   # Draw the buttons
-  for b in buttons[0]:
+  for b in buttons[screenMode]:
     b.draw(lcd)
+
+  # Draw message
+  font = pygame.font.SysFont("quicksandmedium", 25)
+  text = font.render(screenModeMessage[screenMode], True, GOLD)
+  lcd.blit(text, (240 - text.get_width() // 2, 225 - text.get_height() //2))
 
   pygame.display.update()
 
